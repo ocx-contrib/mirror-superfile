@@ -1,0 +1,160 @@
+# ⚠ `extends:` is a SHALLOW merge of TOP-LEVEL KEYS. Setting a key here
+# REPLACES the base's block outright — there is no per-key merge. `platforms:`
+# is deliberately NOT restated below: it carries the container legs that make
+# this spec's libc claims honest, and restating it to tweak one runner would
+# drop them all without reddening anything. This repo is single-package, so the
+# measured matrix lives in the base and nothing here touches it.
+extends: ../mirror-base.yml
+
+name: superfile
+
+# Logical index package `superfile/superfile` at the physical path
+# `ghcr.io/ocx-contrib/superfile/superfile` — slash segments, never
+# hyphen-flattened. Two segments always; `yorukot` is a personal handle, not a
+# vendor, so the tool names itself (namespace rule 4 — mirroring jq in 2022
+# would have produced `stedolan/jq`, wrong today). The first segment must be
+# this repo's own GitHub owner: GITHUB_TOKEN only authorises packages owned by
+# the repo the workflow runs in.
+target:
+  registry: ghcr.io
+  repository: ocx-contrib/superfile/superfile
+
+source:
+  type: github_release
+  owner: yorukot
+  repo: superfile
+  # superfile tags are `v`-prefixed semver (e.g. "v1.6.0"). The anchored
+  # three-segment pattern also rejects, deliberately:
+  #   - every `-rc` prerelease tag (`v1.6.0-rc1`, `v1.4.1-rc`) on its own,
+  #     before `skip_prereleases` gets a say;
+  #   - upstream's two FOUR-segment tags, `v1.1.7.1` and `v1.2.0.0` — not
+  #     semver, and both far below the 1.3.0 floor anyway.
+  tag_pattern: "^v(?P<version>\\d+\\.\\d+\\.\\d+)$"
+
+# ─── libc gate (Phase 3.5) — the evidence, not the conclusion ───────────────
+#
+# Measured on both Linux arches × both in-range endpoints (v1.3.0, the floor,
+# and v1.6.0, the newest) — 4 artifacts, all identical:
+#
+#   $ file dist/superfile-linux-v1.6.0-amd64/spf
+#   ELF 64-bit LSB executable, x86-64, version 1 (SYSV), statically linked,
+#   Go BuildID=bERQW23HgI…
+#   $ readelf -l …/spf | grep -c INTERP   → 0
+#   $ readelf -d …/spf | grep -c NEEDED   → 0
+#   (same on v1.6.0-arm64, v1.3.0-amd64, v1.3.0-arm64 — 4/4 INTERP=0 NEEDED=0)
+#
+#   ⇒ CGO-disabled Go static builds: they require NOTHING of the host userland
+#     → BARE `linux/amd64` and BARE `linux/arm64`. The alpine container leg on
+#     both arches (mirror-base.yml) is what turns that universality claim into
+#     evidence rather than an assertion.
+#
+# ─── Scope (verified against v1.3.0, the floor, and v1.6.0, the newest) ─────
+#
+# Each pattern below matches EXACTLY ONE asset on BOTH endpoint releases,
+# re-listed from the API on 2026-08-04 (12/12 checks → 1). A pattern matching
+# ZERO is silently skipped, not an error — it would yield a green run with a
+# missing platform. The only sidecar upstream ships is
+# `superfile-vX.Y.Z-checksums.txt` (v1.6.0 onward), which no pattern below can
+# match — it carries no `-<os>-` segment and the `\.tar\.gz$` / `\.zip$`
+# anchors reject it anyway.
+#
+# Upstream ships exactly six binary assets per release — linux/darwin/windows
+# × amd64/arm64 — and every one is declared (darwin/windows staged below,
+# uncommented in passes 2–3 together with their platform keys in
+# mirror-base.yml).
+assets:
+  linux/amd64:
+    - "^superfile-linux-v.*-amd64\\.tar\\.gz$"
+  linux/arm64:
+    - "^superfile-linux-v.*-arm64\\.tar\\.gz$"
+  # darwin/amd64:
+  #   - "^superfile-darwin-v.*-amd64\\.tar\\.gz$"
+  # darwin/arm64:
+  #   - "^superfile-darwin-v.*-arm64\\.tar\\.gz$"
+  # windows/amd64:
+  #   - "^superfile-windows-v.*-amd64\\.zip$"
+  # windows/arm64:
+  #   - "^superfile-windows-v.*-arm64\\.zip$"
+
+# Every archive nests the single binary TWO directories deep, with the inner
+# one VERSIONED — so both wrappers must be stripped or the metadata PATH could
+# not be written statically at all:
+#
+#   $ tar tzf superfile-linux-v1.6.0-amd64.tar.gz
+#   ./dist/superfile-linux-v1.6.0-amd64/
+#   ./dist/superfile-linux-v1.6.0-amd64/spf        (mode 0755)
+#   $ unzip -l superfile-windows-v1.6.0-amd64.zip
+#   dist/superfile-windows-v1.6.0-amd64/
+#   dist/superfile-windows-v1.6.0-amd64/spf.exe
+#
+# The tar/zip strip counts DIFFER BY ONE, and that is measured, not guessed:
+# extraction strips via Rust's `path.iter().skip(n)` (ocx_lib archive/tar.rs
+# and zip.rs), and Rust's `Path::iter` KEEPS a leading `./` as a component —
+# the tarballs carry it, the zips (via `enclosed_name`) do not:
+#
+#   tar "./dist/superfile-…-amd64/spf"      skip(3) → "spf"     skip(2) → "…-amd64/spf"
+#   zip "dist/superfile-…-amd64/spf.exe"    skip(2) → "spf.exe" skip(3) → "" (SKIPPED ENTIRELY)
+#
+# So: default (tar — linux and darwin) strips 3; windows zips strip 2. A
+# uniform 3 would extract NOTHING from the zips; a uniform 2 would bury the
+# tar binary in a versioned directory no static PATH can name. Layout is
+# identical across the whole declared range (v1.3.0 and v1.6.0 both listed).
+asset_type:
+  default:
+    type: archive
+    strip_components: 3
+  platforms:
+    windows/amd64:
+      type: archive
+      strip_components: 2
+    windows/arm64:
+      type: archive
+      strip_components: 2
+
+# `off` — FORCED by the layout above, not chosen. After the strip the bundle's
+# only PATH entry is a bare ${installPath}; the scan only inspects an
+# interface-visible `${installPath}/<dir>` entry, so with no subdirectory to
+# point one at both `auto` and `verify` fail spec load at exit 65. The
+# `binaries` list in metadata.json is therefore hand-maintained, exactly as
+# that error directs, and taken from the archive listings above rather than
+# from upstream's README: `spf` is the archive's only entry, mode 0755, on
+# every platform and every in-range version.
+# Quoted so no YAML 1.1 reader folds the bare word into boolean `false`.
+bin_scan: "off"
+
+metadata:
+  default: metadata.json
+
+catalog:
+  # `catalog.*` resolves against THIS spec's directory; the shared logo sits at
+  # the repo root, and the default probe would never find it there.
+  logo: ../logo.svg
+
+versions:
+  # 1.3.0 floor: everything from v1.3.0 up is clean three-segment semver with
+  # an identical asset set (six binaries + optional checksums sidecar) and an
+  # identical archive layout. Below it sit the two four-segment tags the
+  # tag_pattern cannot parse (`v1.2.0.0`, `v1.1.7.1`) plus 2024-era releases
+  # nobody installs fresh — raising the floor is cheaper than special-casing a
+  # tag grammar upstream has not used since.
+  min: "1.3.0"
+  new_per_run: 5
+  poll_interval: "41 */6 * * *"
+
+tests:
+  # `script:` resolves from the REPOSITORY ROOT — unlike `metadata.default` and
+  # `catalog.logo` above, which resolve against this spec's own directory.
+  - name: smoke
+    script: superfile/tests/smoke.star
+
+annotations:
+  # From the Phase 1.5 license gate:
+  #   $ gh api repos/yorukot/superfile/license --jq '.license.spdx_id'
+  #   MIT
+  org.opencontainers.image.licenses: "MIT"
+
+announce:
+  # Spelled out, not derived from target.repository — the logical name and the
+  # physical path are related by convention only.
+  package: superfile/superfile
+  fork: ocx-contrib/index
