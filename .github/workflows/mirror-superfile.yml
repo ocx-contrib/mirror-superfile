@@ -6,7 +6,7 @@ name: superfile
 
 on:
   schedule:
-    - cron: '41 */6 * * *'
+    - cron: '13 2-23/6 * * *'
   workflow_dispatch:
   push:
     branches: [main]
