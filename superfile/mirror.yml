@@ -67,10 +67,10 @@ assets:
     - "^superfile-linux-v.*-amd64\\.tar\\.gz$"
   linux/arm64:
     - "^superfile-linux-v.*-arm64\\.tar\\.gz$"
-  # darwin/amd64:
-  #   - "^superfile-darwin-v.*-amd64\\.tar\\.gz$"
-  # darwin/arm64:
-  #   - "^superfile-darwin-v.*-arm64\\.tar\\.gz$"
+  darwin/amd64:
+    - "^superfile-darwin-v.*-amd64\\.tar\\.gz$"
+  darwin/arm64:
+    - "^superfile-darwin-v.*-arm64\\.tar\\.gz$"
   # windows/amd64:
   #   - "^superfile-windows-v.*-amd64\\.zip$"
   # windows/arm64:
