@@ -26,17 +26,6 @@ quitting superfile can `cd` you to the directory you navigated to.
   upgrade; `--chooser-file <path>` turns superfile into a file picker for
   other programs.
 
-## Install with ocx
-
-```sh
-ocx install ocx.sh/superfile/superfile
-```
-
-```sh
-# or pin a specific version
-ocx install ocx.sh/superfile/superfile:1.6.0
-```
-
 ## Links
 
 - [superfile on GitHub](https://github.com/yorukot/superfile)
