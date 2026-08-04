@@ -94,15 +94,15 @@ platforms:
     runner: macos-14
     shell: bash
   #
-  # windows/amd64:
-  #   runner: windows-latest
-  #   shell: pwsh
-  # windows/arm64:
-  #   # Upstream DOES ship windows-arm64 zips on every in-range release
-  #   # (re-listed from the API on 2026-08-04) — declared here, tested on the
-  #   # native arm64 Windows runner.
-  #   runner: windows-11-arm
-  #   shell: pwsh
+  windows/amd64:
+    runner: windows-latest
+    shell: pwsh
+  windows/arm64:
+    # Upstream DOES ship windows-arm64 zips on every in-range release
+    # (re-listed from the API on 2026-08-04) — declared here, tested on the
+    # native arm64 Windows runner.
+    runner: windows-11-arm
+    shell: pwsh
 
 notify:
   discord:

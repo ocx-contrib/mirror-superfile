@@ -71,10 +71,10 @@ assets:
     - "^superfile-darwin-v.*-amd64\\.tar\\.gz$"
   darwin/arm64:
     - "^superfile-darwin-v.*-arm64\\.tar\\.gz$"
-  # windows/amd64:
-  #   - "^superfile-windows-v.*-amd64\\.zip$"
-  # windows/arm64:
-  #   - "^superfile-windows-v.*-arm64\\.zip$"
+  windows/amd64:
+    - "^superfile-windows-v.*-amd64\\.zip$"
+  windows/arm64:
+    - "^superfile-windows-v.*-arm64\\.zip$"
 
 # Every archive nests the single binary TWO directories deep, with the inner
 # one VERSIONED — so both wrappers must be stripped or the metadata PATH could
